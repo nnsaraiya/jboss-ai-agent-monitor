@@ -1,0 +1,90 @@
+---
+# WildFlyServer CR — creates a JBoss EAP 8 instance managed by the
+# Red Hat JBoss EAP Operator 3.2.13.
+#
+# The EAP Operator 3.x uses the same wildfly.org/v1alpha1 API as the
+# community WildFly Operator. The key difference is the application image:
+# Red Hat's EAP 8 runtime image from registry.redhat.io.
+#
+# Image pull secret:
+#   The EAP image lives on registry.redhat.io and requires Red Hat credentials.
+#   install.sh creates the pull secret automatically. To create it manually:
+#     oc create secret docker-registry rh-registry-secret \
+#       --docker-server=registry.redhat.io \
+#       --docker-username=<RH_USERNAME> \
+#       --docker-password=<RH_PASSWORD> \
+#       -n jboss-production
+#     oc secrets link default rh-registry-secret --for=pull -n jboss-production
+#
+apiVersion: wildfly.org/v1alpha1
+kind: WildFlyServer
+metadata:
+  name: jboss-instance
+  namespace: jboss-production
+  labels:
+    app.kubernetes.io/name: jboss-instance
+    app.kubernetes.io/part-of: jboss-platform
+    app.kubernetes.io/managed-by: wildfly-operator   # used by the AI monitor
+spec:
+  # ── Application image ──────────────────────────────────────────────────────
+  # Official JBoss EAP 8 runtime image on OpenJDK 17 (RHEL 8)
+  # Requires registry.redhat.io pull secret — see install.sh.
+  applicationImage: "registry.redhat.io/jboss-eap-8/eap8-openjdk17-runtime-openshift-rhel8:latest"
+
+  # ── Replica count ──────────────────────────────────────────────────────────
+  replicas: 1
+
+  # ── Resource limits ────────────────────────────────────────────────────────
+  # EAP 8 default heap usage is higher than community WildFly — 1Gi is the
+  # recommended minimum for a production-style baseline.
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "768Mi"
+    limits:
+      cpu: "1000m"
+      memory: "1536Mi"
+
+  # ── JVM / EAP options ──────────────────────────────────────────────────────
+  env:
+    - name: JAVA_OPTS_APPEND
+      value: >-
+        -Xms256m
+        -Xmx1024m
+        -XX:+UseG1GC
+        -XX:MaxGCPauseMillis=200
+        -XX:+HeapDumpOnOutOfMemoryError
+        -XX:HeapDumpPath=/tmp/heapdump.hprof
+        -Djboss.as.management.blocking.timeout=300
+        -Dorg.jboss.logging.provider=jboss
+
+    # EAP 8 admin user — remove in production, use external identity provider
+    - name: ADMIN_USERNAME
+      value: "admin"
+    - name: ADMIN_PASSWORD
+      value: "Admin1234!"
+
+  # ── Pull secret for registry.redhat.io ────────────────────────────────────
+  # Created by install.sh; referenced here so the StatefulSet uses it.
+  # Comment out if you've linked the secret to the 'default' ServiceAccount.
+  # (The operator will propagate it to the StatefulSet automatically in 3.x)
+
+  # ── Storage ────────────────────────────────────────────────────────────────
+  storage:
+    volumeClaimTemplate:
+      spec:
+        accessModes:
+          - ReadWriteOnce
+        resources:
+          requests:
+            storage: 1Gi
+
+  # ── Standalone config ──────────────────────────────────────────────────────
+  # EAP 8 ships with standalone.xml (full profile) by default.
+  # Uncomment to supply a custom config from a ConfigMap:
+  # standaloneConfigMap:
+  #   name: eap-standalone-config
+  #   key: standalone.xml
+
+  # ── Service account ────────────────────────────────────────────────────────
+  serviceAccountName: ""

@@ -1,0 +1,26 @@
+---
+# Subscription — installs JBoss EAP Operator 3.2.13 via OLM.
+#
+# Operator : JBoss EAP Operator (provided by Red Hat)
+# Package  : eap
+# Catalog  : redhat-operators  (ships with every CRC / OpenShift cluster)
+# Channel  : stable            (tracks EAP 8.x releases)
+# CSV      : eap-operator.v3.2.13  (pinned — remove startingCSV to track latest)
+#
+# EAP Operator 3.x → JBoss EAP 8.0 on JDK 17 / JDK 21
+#
+# Pre-requisite: registry.redhat.io pull secret must exist in the namespace.
+# install.sh handles this automatically (see --rh-user / --rh-password flags).
+#
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: eap
+  namespace: jboss-production
+spec:
+  channel: stable
+  installPlanApproval: Automatic
+  name: eap
+  source: redhat-operators
+  sourceNamespace: openshift-marketplace
+  startingCSV: eap-operator.v3.2.13

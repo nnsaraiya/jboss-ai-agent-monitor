@@ -1,0 +1,11 @@
+---
+# OperatorGroup scopes the WildFly Operator to the jboss-production namespace.
+# OLM requires exactly one OperatorGroup per namespace.
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: jboss-operatorgroup
+  namespace: jboss-production
+spec:
+  targetNamespaces:
+    - jboss-production

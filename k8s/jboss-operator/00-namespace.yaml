@@ -1,0 +1,9 @@
+---
+# Namespace where JBoss/WildFly workloads will run.
+# The AI monitor watches this namespace (set JBOSS_NAMESPACE in configmap.yaml).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jboss-production
+  labels:
+    app.kubernetes.io/part-of: jboss-platform

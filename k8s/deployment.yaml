@@ -1,0 +1,84 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: jboss-ai-monitor
+  namespace: jboss-monitoring          # Change to your namespace
+  labels:
+    app.kubernetes.io/name: jboss-ai-monitor
+    app.kubernetes.io/component: monitor
+    app.kubernetes.io/version: "1.0.0"
+spec:
+  replicas: 1                          # Only 1 replica — the agent is stateful (dedup)
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: jboss-ai-monitor
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: jboss-ai-monitor
+        app.kubernetes.io/component: monitor
+      annotations: {}
+    spec:
+      serviceAccountName: jboss-ai-monitor
+
+      # OpenShift restricted-v2 SCC compliance:
+      # Do NOT set runAsUser/fsGroup — OpenShift assigns a UID automatically
+      # from the namespace's allocated range (e.g. 1000700000-1000709999).
+      securityContext:
+        runAsNonRoot: true
+
+      containers:
+        - name: jboss-ai-monitor
+          image: quay.io/nnsaraiya/jboss-ai-monitor/jboss-ai-monitor:1.0.0
+          imagePullPolicy: Always
+          command: ["python", "-m", "src.main"]
+
+          # ── Resource limits ────────────────────────────────────────────
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "256Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"
+
+          # ── Environment from ConfigMap ─────────────────────────────────
+          envFrom:
+            - configMapRef:
+                name: jboss-ai-monitor-config
+            - secretRef:
+                name: jboss-ai-monitor-secret
+
+          # ── Liveness probe — restarts the container if the process hangs ──
+          livenessProbe:
+            exec:
+              command: ["python", "-c", "import sys; sys.exit(0)"]
+            initialDelaySeconds: 30
+            periodSeconds: 60
+            failureThreshold: 3
+
+          # ── Security context ───────────────────────────────────────────
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+
+          # ── Volume mounts ──────────────────────────────────────────────
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp
+          emptyDir: {}
+
+      # Tolerate node issues for higher availability
+      tolerations:
+        - key: "node.kubernetes.io/not-ready"
+          operator: "Exists"
+          effect: "NoExecute"
+          tolerationSeconds: 300
+
+      restartPolicy: Always

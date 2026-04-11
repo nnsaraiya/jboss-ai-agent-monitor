@@ -1,0 +1,234 @@
+---
+# WildFly Operator — direct install (no OLM required).
+#
+# Used automatically by install.sh when no matching OLM package is found.
+# Source: https://github.com/wildfly/wildfly-operator
+# Applies: CRD, RBAC, and the operator Deployment in one file.
+#
+# To apply manually:
+#   oc apply -f 04-wildfly-operator-direct.yaml -n jboss-production
+
+# ── CRD ───────────────────────────────────────────────────────────────────────
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: wildflyservers.wildfly.org
+  labels:
+    app.kubernetes.io/name: wildfly-operator
+spec:
+  group: wildfly.org
+  names:
+    kind: WildFlyServer
+    listKind: WildFlyServerList
+    plural: wildflyservers
+    singular: wildflyserver
+    shortNames:
+      - wfly
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      subresources:
+        status: {}
+        scale:
+          specReplicasPath: .spec.replicas
+          statusReplicasPath: .status.replicas
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              required: ["applicationImage", "replicas"]
+              properties:
+                applicationImage:
+                  type: string
+                replicas:
+                  type: integer
+                  minimum: 0
+                env:
+                  type: array
+                  items:
+                    type: object
+                    required: ["name"]
+                    properties:
+                      name:  { type: string }
+                      value: { type: string }
+                resources:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                storage:
+                  type: object
+                  x-kubernetes-preserve-unknown-fields: true
+                serviceAccountName:
+                  type: string
+                standaloneConfigMap:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    key:  { type: string }
+            status:
+              type: object
+              x-kubernetes-preserve-unknown-fields: true
+      additionalPrinterColumns:
+        - name: Replicas
+          type: integer
+          jsonPath: .spec.replicas
+        - name: Ready
+          type: integer
+          jsonPath: .status.replicas
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+
+---
+# ── ServiceAccount ────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: wildfly-operator
+  namespace: jboss-production
+  labels:
+    app.kubernetes.io/name: wildfly-operator
+
+---
+# ── Role (namespace-scoped permissions) ───────────────────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: wildfly-operator
+  namespace: jboss-production
+  labels:
+    app.kubernetes.io/name: wildfly-operator
+rules:
+  - apiGroups: [""]
+    resources:
+      - pods
+      - pods/exec
+      - pods/log
+      - services
+      - endpoints
+      - persistentvolumeclaims
+      - events
+      - configmaps
+      - secrets
+      - serviceaccounts
+    verbs: ["*"]
+  - apiGroups: ["apps"]
+    resources: ["deployments", "statefulsets", "replicasets"]
+    verbs: ["*"]
+  - apiGroups: ["monitoring.coreos.com"]
+    resources: ["servicemonitors", "podmonitors"]
+    verbs: ["get", "create", "update", "list", "watch"]
+  - apiGroups: ["route.openshift.io"]
+    resources: ["routes", "routes/custom-host"]
+    verbs: ["*"]
+  - apiGroups: ["wildfly.org"]
+    resources: ["wildflyservers", "wildflyservers/status", "wildflyservers/finalizers"]
+    verbs: ["*"]
+
+---
+# ── RoleBinding ───────────────────────────────────────────────────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: wildfly-operator
+  namespace: jboss-production
+  labels:
+    app.kubernetes.io/name: wildfly-operator
+subjects:
+  - kind: ServiceAccount
+    name: wildfly-operator
+    namespace: jboss-production
+roleRef:
+  kind: Role
+  name: wildfly-operator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ── ClusterRole (for watching nodes and CRDs cluster-wide) ───────────────────
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: wildfly-operator
+  labels:
+    app.kubernetes.io/name: wildfly-operator
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["apiextensions.k8s.io"]
+    resources: ["customresourcedefinitions"]
+    verbs: ["get", "list", "watch"]
+
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: wildfly-operator
+  labels:
+    app.kubernetes.io/name: wildfly-operator
+subjects:
+  - kind: ServiceAccount
+    name: wildfly-operator
+    namespace: jboss-production
+roleRef:
+  kind: ClusterRole
+  name: wildfly-operator
+  apiGroup: rbac.authorization.k8s.io
+
+---
+# ── Operator Deployment ───────────────────────────────────────────────────────
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wildfly-operator
+  namespace: jboss-production
+  labels:
+    app.kubernetes.io/name: wildfly-operator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: wildfly-operator
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: wildfly-operator
+    spec:
+      serviceAccountName: wildfly-operator
+      securityContext:
+        runAsNonRoot: true
+      containers:
+        - name: wildfly-operator
+          # Official WildFly Operator image — always pulls the latest release
+          image: quay.io/wildfly/wildfly-operator:latest
+          imagePullPolicy: Always
+          command:
+            - wildfly-operator
+          args:
+            - "--leader-elect"
+          env:
+            - name: WATCH_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: OPERATOR_NAME
+              value: "wildfly-operator"
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
