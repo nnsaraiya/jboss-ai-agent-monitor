@@ -151,30 +151,42 @@ else
   fail "Secret 'jboss-ai-monitor-secret' not found — run: oc apply -f k8s/secret-template.yaml -n $NAMESPACE"
 fi
 
-# ── 7. JBoss health endpoint ──────────────────────────────────────────────────
+# ── 7. JBoss HTTP endpoint ──────────────────────────────────────────────────
 echo ""
-echo "[ 7 ] JBoss /health endpoint (from inside cluster)"
-JBOSS_SVC=$(oc get svc -n "$NAMESPACE" \
-  -l app.kubernetes.io/managed-by=eap-operator \
-  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || \
-  oc get svc -n "$NAMESPACE" \
-  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null || echo "")
-if [[ -n "$JBOSS_SVC" ]]; then
-  JBOSS_PORT=$(oc get svc "$JBOSS_SVC" -n "$NAMESPACE" \
-    -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "8080")
+echo "[ 7 ] JBoss HTTP endpoint (from inside cluster)"
+# Read jboss namespace and health URL from the live configmap
+JBOSS_NS=$(oc get configmap jboss-ai-monitor-config -n "$NAMESPACE" \
+  -o jsonpath='{.data.JBOSS_NAMESPACE}' 2>/dev/null || echo "$NAMESPACE")
+PROBE_URL=$(oc get configmap jboss-ai-monitor-config -n "$NAMESPACE" \
+  -o jsonpath='{.data.HEALTH_CHECK_URLS}' 2>/dev/null | cut -d',' -f1 | tr -d ' ')
+
+if [[ -z "$PROBE_URL" ]]; then
+  # Fall back to auto-discovering the loadbalancer service in the jboss namespace
+  JBOSS_SVC=$(oc get svc -n "$JBOSS_NS" \
+    -o jsonpath='{.items[*].metadata.name}' 2>/dev/null | \
+    tr ' ' '\n' | grep -i 'loadbalancer\|jboss\|wildfly\|eap' | head -1 || echo "")
+  if [[ -n "$JBOSS_SVC" ]]; then
+    JBOSS_PORT=$(oc get svc "$JBOSS_SVC" -n "$JBOSS_NS" \
+      -o jsonpath='{.spec.ports[0].port}' 2>/dev/null || echo "8080")
+    PROBE_URL="http://${JBOSS_SVC}.${JBOSS_NS}.svc.cluster.local:${JBOSS_PORT}/"
+  fi
+fi
+
+if [[ -n "$PROBE_URL" ]]; then
+  # Capture only the 3-digit HTTP status code — strip pod deletion messages
   HTTP_CODE=$(oc run health-check-test --rm -i --restart=Never \
-    --image=curlimages/curl:latest -n "$NAMESPACE" \
+    --image=curlimages/curl:latest -n "$JBOSS_NS" \
     --command -- curl -s -o /dev/null -w "%{http_code}" \
-    "http://${JBOSS_SVC}:${JBOSS_PORT}/health" 2>/dev/null || echo "ERR")
+    "$PROBE_URL" 2>/dev/null | grep -oE '[0-9]{3}' | head -1 || echo "ERR")
   if [[ "$HTTP_CODE" == "200" ]]; then
-    pass "/health returned HTTP 200 on svc '$JBOSS_SVC:$JBOSS_PORT'"
-  elif [[ "$HTTP_CODE" == "ERR" ]]; then
-    warn "Could not run curl pod — check manually: oc exec -it <jboss-pod> -n $NAMESPACE -- curl http://localhost:9990/health"
+    pass "HTTP $HTTP_CODE — $PROBE_URL"
+  elif [[ "$HTTP_CODE" == "ERR" || -z "$HTTP_CODE" ]]; then
+    warn "Could not run curl pod in namespace '$JBOSS_NS' — check manually"
   else
-    fail "/health returned HTTP $HTTP_CODE (expected 200)"
+    fail "HTTP $HTTP_CODE — $PROBE_URL (expected 200)"
   fi
 else
-  warn "No JBoss service found — skipping health check"
+  warn "No JBoss service found in namespace '$JBOSS_NS' — skipping"
 fi
 
 # ── 8. AI Monitor logs ────────────────────────────────────────────────────────
@@ -254,7 +266,7 @@ if [[ -n "$JIRA_USER_VAL" && -n "$JIRA_TOKEN_VAL" ]]; then
   TICKETS=$(curl -s \
     -u "${JIRA_USER_VAL}:${JIRA_TOKEN_VAL}" \
     -H "Content-Type: application/json" \
-    "${JIRA_URL}/rest/api/3/search?jql=project=${JIRA_PROJECT}+ORDER+BY+created+DESC&maxResults=3&fields=summary,status,created" \
+    "${JIRA_URL}/rest/api/2/search?jql=project%3D${JIRA_PROJECT}%20ORDER%20BY%20created%20DESC&maxResults=5&fields=summary,status,created" \
     2>/dev/null | python3 -c "
 import sys, json
 data = json.load(sys.stdin)
