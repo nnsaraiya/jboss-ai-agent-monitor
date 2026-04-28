@@ -98,10 +98,13 @@ class Config:
         ]
     )
 
-    # ── Anthropic Claude ──────────────────────────────────────────────────────
-    anthropic_api_key: str = os.environ.get("ANTHROPIC_API_KEY", "")
-    claude_model: str = os.environ.get("CLAUDE_MODEL", "claude-opus-4-6")
-    claude_max_tokens: int = int(os.environ.get("CLAUDE_MAX_TOKENS", "2048"))
+    # ── RHOAI (Red Hat OpenShift AI) ──────────────────────────────────────────
+    # Base URL of the RHOAI model-serving inference endpoint (must end in /v1)
+    # e.g. https://llama-3-8b-instruct-predictor.apps.your-cluster.example.com/v1
+    rhoai_api_url: str = os.environ.get("RHOAI_API_URL", "")
+    rhoai_api_key: str = os.environ.get("RHOAI_API_KEY", "")
+    rhoai_model_name: str = os.environ.get("RHOAI_MODEL_NAME", "")
+    rhoai_max_tokens: int = int(os.environ.get("RHOAI_MAX_TOKENS", "2048"))
 
     # ── Deduplication ─────────────────────────────────────────────────────────
     # Don't re-open a JIRA for the same fingerprint within this window

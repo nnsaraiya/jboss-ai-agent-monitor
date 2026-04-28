@@ -76,8 +76,10 @@ def validate_config(cfg: Config) -> None:
         errors.append("JIRA_TOKEN is required")
     if not cfg.jira_project_key:
         errors.append("JIRA_PROJECT_KEY is required")
-    if not cfg.anthropic_api_key:
-        errors.append("ANTHROPIC_API_KEY is required")
+    if not cfg.rhoai_api_url:
+        errors.append("RHOAI_API_URL is required")
+    if not cfg.rhoai_model_name:
+        errors.append("RHOAI_MODEL_NAME is required")
     if errors:
         for err in errors:
             logging.getLogger(__name__).error("Config error: %s", err)
@@ -153,7 +155,7 @@ class MonitoringAgent:
         )
 
         # ── Get AI resolution ──────────────────────────────────────────────
-        self._logger.info("Requesting resolution from Claude AI …")
+        self._logger.info("Requesting resolution from RHOAI model …")
         resolution = self._resolution_agent.analyse(issue)
         self._logger.info(
             "Resolution received (confidence: %s, %d steps)",

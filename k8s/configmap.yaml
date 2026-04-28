@@ -39,9 +39,13 @@ data:
   JIRA_ISSUE_TYPE: "Task"
   JIRA_LABELS: "jboss,openshift,automated"
 
-  # ── Claude AI ────────────────────────────────────────────────────────────
-  CLAUDE_MODEL: "claude-opus-4-6"
-  CLAUDE_MAX_TOKENS: "2048"
+  # ── RHOAI (Red Hat OpenShift AI) ─────────────────────────────────────────
+  # Base URL of the RHOAI model-serving inference endpoint (must end in /v1)
+  # e.g. https://llama-3-8b-instruct-predictor.apps.your-cluster.example.com/v1
+  RHOAI_API_URL: ""
+  # Name of the deployed model as shown in RHOAI model server
+  RHOAI_MODEL_NAME: ""
+  RHOAI_MAX_TOKENS: "2048"
 
   # ── Deduplication ────────────────────────────────────────────────────────
   DEDUP_WINDOW_MINUTES: "120"           # Suppress duplicate tickets for 2 hours
