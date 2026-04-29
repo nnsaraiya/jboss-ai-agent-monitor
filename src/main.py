@@ -15,7 +15,7 @@ Architecture:
   │                             └──────┬──────┘                         │
   │                                    │ new issues only                │
   │                             ┌──────▼──────┐                         │
-  │                             │  Claude AI  │  (ResolutionAgent)      │
+  │                             │  RHOAI LLM  │  (ResolutionAgent)      │
   │                             └──────┬──────┘                         │
   │                                    │ Resolution                     │
   │                             ┌──────▼──────┐                         │
@@ -146,7 +146,7 @@ class MonitoringAgent:
         self._dedup.evict_expired()
 
     def _process_issue(self, issue: Issue) -> None:
-        """Analyse an issue with Claude and file a JIRA ticket."""
+        """Analyse an issue with the RHOAI model and file a JIRA ticket."""
         self._logger.info(
             "Processing issue: [%s/%s] %s",
             issue.severity.value.upper(),

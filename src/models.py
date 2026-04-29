@@ -43,7 +43,7 @@ class Issue:
     severity: IssueSeverity
     title: str
     description: str
-    # Raw data from kubernetes / prometheus / logs — for Claude context
+    # Raw data from kubernetes / prometheus / logs — for RHOAI model context
     raw_data: Dict[str, Any]
     namespace: str
     pod_name: Optional[str] = None
@@ -61,7 +61,7 @@ class Issue:
             self.fingerprint = hashlib.md5(raw.encode()).hexdigest()
 
     def to_context_dict(self) -> Dict[str, Any]:
-        """Produce a clean dict to send to the Claude API for analysis."""
+        """Produce a clean dict to send to the RHOAI model for analysis."""
         return {
             "issue_type": self.issue_type.value,
             "severity": self.severity.value,
@@ -83,13 +83,13 @@ class Issue:
 
 @dataclass
 class Resolution:
-    """Resolution recommendation produced by the Claude agent."""
+    """Resolution recommendation produced by the RHOAI model."""
 
     root_cause_analysis: str
     resolution_steps: List[str]
     prevention_tips: List[str]
     references: List[str]
-    # Confidence expressed by Claude: high / medium / low
+    # Confidence expressed by the RHOAI model: high / medium / low
     confidence: str = "medium"
 
 
