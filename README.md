@@ -1,6 +1,6 @@
 # JBoss AI Monitor
 
-An agentic AI application that continuously monitors a **JBoss EAP 8** instance running on **OpenShift** (CRC), automatically analyzes detected issues using **Claude AI**, and creates structured **JIRA tickets** with AI-generated root-cause analysis and resolution steps — all without human intervention.
+An agentic AI application that continuously monitors a **JBoss EAP 8** instance running on **OpenShift** (CRC), automatically analyzes detected issues using an **RHOAI-hosted LLM** (llama-32-3b-instruct via vLLM), and creates structured **JIRA tickets** with AI-generated root-cause analysis and resolution steps — all without human intervention.
 
 ---
 
@@ -12,8 +12,8 @@ OpenShift (jboss-production)          jboss-monitoring namespace
 │  jboss-instance-0       │          │  JBoss AI Monitor (Python)           │
 │  jboss-instance-1       │◄─────────│                                      │
 │  (EAP 8 via Operator)   │  watch   │  ┌──────────┐  ┌──────────────────┐  │
-└─────────────────────────┘          │  │ 4 Monitor│  │  Claude AI       │  │
-                                     │  │ modules  │─►│  claude-opus-4-6 │  │
+└─────────────────────────┘          │  │ 4 Monitor│  │  RHOAI LLM       │  │
+                                     │  │ modules  │─►│  llama-32-3b     │  │
                                      │  └──────────┘  └────────┬─────────┘  │
                                      │                         │            │
                                      └─────────────────────────┼────────────┘
@@ -23,7 +23,7 @@ OpenShift (jboss-production)          jboss-monitoring namespace
                                                     (auto-created tickets)
 ```
 
-Every 60 seconds the monitor runs a full cycle across four detection layers. Any detected issue is sent to Claude AI for analysis. The structured response — including root cause, resolution steps, and prevention tips — is written directly into a JIRA ticket.
+Every 60 seconds the monitor runs a full cycle across four detection layers. Any detected issue is sent to the RHOAI-hosted LLM for analysis. The structured response — including root cause, resolution steps, and prevention tips — is written directly into a JIRA ticket.
 
 ---
 
@@ -52,7 +52,7 @@ jboss-ai-monitor/
 │   │   ├── log_monitor.py       # Log error pattern matching
 │   │   └── health_monitor.py    # HTTP health endpoint probing
 │   ├── agent/
-│   │   └── resolution_agent.py  # Claude AI tool-call integration
+│   │   └── resolution_agent.py  # RHOAI LLM function-call integration
 │   ├── jira/
 │   │   └── jira_client.py       # JIRA REST API v3 ticket creation (ADF format)
 │   └── utils/
@@ -81,7 +81,7 @@ jboss-ai-monitor/
 - `oc` CLI logged in as `kubeadmin`
 - `docker` CLI with access to `quay.io` (or your own registry)
 - Red Hat account with `registry.redhat.io` access (for EAP 8 image)
-- Anthropic API key with credits — [console.anthropic.com](https://console.anthropic.com/settings/billing)
+- RHOAI cluster with a deployed model serving endpoint (llama-32-3b-instruct or compatible)
 - Atlassian JIRA Cloud account + API token
 
 ---
@@ -121,7 +121,7 @@ Required secret keys:
 
 | Key | Value |
 |---|---|
-| `ANTHROPIC_API_KEY` | From [console.anthropic.com/settings/api-keys](https://console.anthropic.com/settings/api-keys) |
+| `RHOAI_API_KEY` | OpenShift service account token with access to the RHOAI inference endpoint |
 | `JIRA_USER` | Your Atlassian account email |
 | `JIRA_TOKEN` | From [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
 
@@ -135,7 +135,8 @@ HEALTH_CHECK_URLS: "http://jboss-instance-loadbalancer.jboss-production.svc.clus
 JIRA_URL: "https://<your-org>.atlassian.net"
 JIRA_PROJECT_KEY: "KAN"                   # Your JIRA project key
 JIRA_ISSUE_TYPE: "Task"                   # Must match a valid type in your project
-CLAUDE_MODEL: "claude-opus-4-6"
+RHOAI_API_URL: "https://llama-32-3b-instruct-predictor-my-first-model.apps.<cluster>/v1"
+RHOAI_MODEL_NAME: "llama-32-3b-instruct"
 DEDUP_WINDOW_MINUTES: "120"               # Suppress duplicate tickets for 2 hours
 ```
 
@@ -198,7 +199,7 @@ When an issue is detected:
 
 ```
 Processing issue: [HIGH/health_failure] Health check failed …
-Requesting resolution from Claude AI …
+Requesting resolution from RHOAI model …
 Resolution received (confidence: high, 8 steps)
 JiraClient: created ticket KAN-6 — https://<org>.atlassian.net/browse/KAN-6
 ```
@@ -219,14 +220,15 @@ All variables are loaded from the ConfigMap and Secret. Every variable has a def
 | `JIRA_URL` | ConfigMap | — | JIRA instance base URL |
 | `JIRA_PROJECT_KEY` | ConfigMap | `OPS` | Target JIRA project |
 | `JIRA_ISSUE_TYPE` | ConfigMap | `Task` | Issue type (must exist in your project) |
-| `CLAUDE_MODEL` | ConfigMap | `claude-opus-4-6` | Anthropic model to use |
-| `CLAUDE_MAX_TOKENS` | ConfigMap | `2048` | Max tokens per AI response |
+| `RHOAI_API_URL` | ConfigMap | — | RHOAI inference endpoint base URL (must end in `/v1`) |
+| `RHOAI_MODEL_NAME` | ConfigMap | — | Deployed model name as shown in RHOAI |
+| `RHOAI_MAX_TOKENS` | ConfigMap | `2048` | Max tokens per AI response |
 | `DEDUP_WINDOW_MINUTES` | ConfigMap | `120` | Duplicate suppression window |
 | `ENABLE_POD_MONITOR` | ConfigMap | `true` | Toggle pod crash detection |
 | `ENABLE_ALERT_MONITOR` | ConfigMap | `true` | Toggle AlertManager polling |
 | `ENABLE_LOG_MONITOR` | ConfigMap | `true` | Toggle log pattern scanning |
 | `ENABLE_HEALTH_MONITOR` | ConfigMap | `true` | Toggle health endpoint probing |
-| `ANTHROPIC_API_KEY` | Secret | — | Anthropic API key |
+| `RHOAI_API_KEY` | Secret | — | OpenShift service account token for RHOAI inference endpoint |
 | `JIRA_USER` | Secret | — | JIRA account email |
 | `JIRA_TOKEN` | Secret | — | JIRA API token |
 
@@ -262,7 +264,7 @@ oc scale deployment/jboss-ai-monitor --replicas=0 -n jboss-monitoring
 
 ## Architecture Notes
 
-**AI tool-calling**: The `resolution_agent.py` uses `tool_choice={"type":"any"}` to force Claude to always respond via a structured JSON tool call rather than free-form text. This guarantees a parseable `Resolution` object with consistent fields every time.
+**AI function-calling**: The `resolution_agent.py` uses the OpenAI-compatible `tools` API with `tool_choice={"type":"function","function":{"name":"provide_resolution"}}` to force the RHOAI-hosted model to always respond via a structured JSON function call rather than free-form text. This guarantees a parseable `Resolution` object with consistent fields every time.
 
 **Deduplication**: Issues are fingerprinted by MD5 hash of `(issue_type + title + severity)`. Within the dedup window, repeat occurrences are detected and logged but no new JIRA ticket is created.
 
