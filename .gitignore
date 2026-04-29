@@ -6,11 +6,16 @@ k8s/*pull-secret*.yaml
 .env
 .env.*
 !.env.example
+*.pem
+*.key
+kubeconfig
+kubeconfig.*
 
 # ── Python ───────────────────────────────────────────────────────────────────
 __pycache__/
 *.py[cod]
-*$py.class
+*.pyo
+*.pyd
 *.so
 .Python
 build/
@@ -29,21 +34,36 @@ wheels/
 .installed.cfg
 *.egg
 MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Virtual environments ──────────────────────────────────────────────────────
 .venv/
 venv/
-ENV/
 env/
+ENV/
 
 # ── Test / coverage / type checkers ─────────────────────────────────────────
 .pytest_cache/
 .mypy_cache/
+.dmypy.json
+.pytype/
 .ruff_cache/
+.tox/
 htmlcov/
 .coverage
 .coverage.*
 coverage.xml
 *.cover
 .hypothesis/
+nosetests.xml
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Jupyter ──────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
 
 # ── IDE / editor ────────────────────────────────────────────────────────────
 .idea/
@@ -57,4 +77,11 @@ coverage.xml
 
 # ── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
+.AppleDouble
+.LSOverride
+._*
 Thumbs.db
+
+# ── Temporary files ──────────────────────────────────────────────────────────
+*.tmp
+*.bak
