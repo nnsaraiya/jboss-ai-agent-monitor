@@ -120,6 +120,9 @@ oc apply -f k8s/jboss-operator/03-wildflyserver.yaml
 Copy the template, fill in real values, and apply:
 
 ```bash
+# Create the jboss-monitoring namespace first
+oc apply -f k8s/namespace.yaml
+
 # Copy the template (never commit secret.yaml with real values)
 cp k8s/secret-template.yaml k8s/secret.yaml
 
@@ -162,7 +165,6 @@ docker push quay.io/<your-username>/jboss-ai-monitor:1.0.0
 Update `k8s/deployment.yaml` with your image path, then:
 
 ```bash
-oc apply -f k8s/namespace.yaml
 oc apply -f k8s/configmap.yaml -n jboss-monitoring
 oc apply -f k8s/serviceaccount.yaml -n jboss-monitoring
 oc apply -f k8s/deployment.yaml -n jboss-monitoring
