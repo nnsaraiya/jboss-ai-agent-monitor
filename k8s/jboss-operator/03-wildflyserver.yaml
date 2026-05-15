@@ -29,7 +29,7 @@ spec:
   # ── Application image ──────────────────────────────────────────────────────
   # Official JBoss EAP 8 runtime image on OpenJDK 17 (RHEL 8)
   # Requires registry.redhat.io pull secret — see install.sh.
-  applicationImage: "registry.redhat.io/jboss-eap-8/eap8-openjdk17-runtime-openshift-rhel8:latest"
+  applicationImage: "quay.io/wildfly/wildfly:latest"
 
   # ── Replica count ──────────────────────────────────────────────────────────
   replicas: 1
@@ -68,16 +68,6 @@ spec:
   # Created by install.sh; referenced here so the StatefulSet uses it.
   # Comment out if you've linked the secret to the 'default' ServiceAccount.
   # (The operator will propagate it to the StatefulSet automatically in 3.x)
-
-  # ── Storage ────────────────────────────────────────────────────────────────
-  storage:
-    volumeClaimTemplate:
-      spec:
-        accessModes:
-          - ReadWriteOnce
-        resources:
-          requests:
-            storage: 1Gi
 
   # ── Standalone config ──────────────────────────────────────────────────────
   # EAP 8 ships with standalone.xml (full profile) by default.
