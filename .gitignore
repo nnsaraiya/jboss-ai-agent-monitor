@@ -1,5 +1,7 @@
 # ── Local secrets (never commit filled manifests) ───────────────────────────
-k8s/secret-template.yaml
+# Note: k8s/secret-template.yaml (placeholder values only) IS committed.
+#       Add your filled copy under a different name, e.g. k8s/secret.yaml
+k8s/secret.yaml
 k8s/*pull-secret*.yaml
 
 # ── Environment / credentials (local dev) ───────────────────────────────────
