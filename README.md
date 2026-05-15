@@ -150,6 +150,7 @@ docker push quay.io/<your-username>/jboss-ai-monitor:1.0.0
 Update `k8s/deployment.yaml` with your image path, then:
 
 ```bash
+oc apply -f k8s/namespace.yaml
 oc apply -f k8s/configmap.yaml -n jboss-monitoring
 oc apply -f k8s/serviceaccount.yaml -n jboss-monitoring
 oc apply -f k8s/deployment.yaml -n jboss-monitoring
