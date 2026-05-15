@@ -72,7 +72,7 @@ jboss-ai-monitor/
 │   ├── secret-template.yaml     # Credentials template (copy to secret.yaml, never commit filled)
 │   ├── serviceaccount.yaml      # ServiceAccount + RBAC
 │   └── jboss-operator/
-│       ├── install.sh           # WildFly Operator + WildFlyServer installer
+│       ├── install.sh           # EAP Operator (OLM) + WildFlyServer installer
 │       ├── 00-namespace.yaml
 │       ├── 01-operatorgroup.yaml
 │       ├── 02-subscription.yaml
