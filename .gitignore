@@ -1,45 +1,8 @@
-# Python
-__pycache__/
-*.py[cod]
-*.pyo
-*.pyd
-*.egg
-*.egg-info/
-dist/
-build/
-eggs/
-parts/
-var/
-sdist/
-develop-eggs/
-.installed.cfg
-lib/
-lib64/
-.Python
-pip-log.txt
-pip-delete-this-directory.txt
+# ── Local secrets (never commit filled manifests) ───────────────────────────
+k8s/secret-template.yaml
+k8s/*pull-secret*.yaml
 
-# Virtual environments
-.venv/
-venv/
-env/
-ENV/
-
-# Testing
-.pytest_cache/
-.coverage
-htmlcov/
-.tox/
-nosetests.xml
-coverage.xml
-*.cover
-
-# Type checking
-.mypy_cache/
-.dmypy.json
-.pytype/
-
-# Environment / secrets
+# ── Environment / credentials (local dev) ───────────────────────────────────
 .env
 .env.*
 !.env.example
@@ -48,28 +11,77 @@ coverage.xml
 kubeconfig
 kubeconfig.*
 
-# Logs
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Test / coverage / type checkers ─────────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.pytype/
+.ruff_cache/
+.tox/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+nosetests.xml
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
 *.log
 logs/
 
-# macOS
+# ── Jupyter ──────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── IDE / editor ────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# ── OS ───────────────────────────────────────────────────────────────────────
 .DS_Store
 .AppleDouble
 .LSOverride
 ._*
+Thumbs.db
 
-# JetBrains IDEs
-.idea/
-*.iml
-
-# VS Code
-.vscode/
-
-# Jupyter
-.ipynb_checkpoints/
-
-# Temporary files
+# ── Temporary files ──────────────────────────────────────────────────────────
 *.tmp
 *.bak
-*.swp
-*~
