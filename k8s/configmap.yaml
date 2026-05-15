@@ -42,9 +42,9 @@ data:
   # ── RHOAI (Red Hat OpenShift AI) ─────────────────────────────────────────
   # Base URL of the RHOAI model-serving inference endpoint (must end in /v1)
   # e.g. https://llama-3-8b-instruct-predictor.apps.your-cluster.example.com/v1
-  RHOAI_API_URL: ""
+  RHOAI_API_URL: "http://llama-32-3b-instruct-predictor.my-first-model.svc.cluster.local:8080/v1"
   # Name of the deployed model as shown in RHOAI model server
-  RHOAI_MODEL_NAME: ""
+  RHOAI_MODEL_NAME: "llama-32-3b-instruct"
   RHOAI_MAX_TOKENS: "2048"
 
   # ── Deduplication ────────────────────────────────────────────────────────
