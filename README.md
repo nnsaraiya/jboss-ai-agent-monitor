@@ -1,26 +1,34 @@
 # JBoss AI Monitor
 
-An agentic AI application that continuously monitors a **JBoss EAP 8** instance running on **OpenShift** (CRC), automatically analyzes detected issues using an **RHOAI-hosted LLM** (llama-32-3b-instruct via vLLM), and creates structured **JIRA tickets** with AI-generated root-cause analysis and resolution steps — all without human intervention.
+An agentic AI application that continuously monitors a **JBoss/WildFly** instance running on **OpenShift**, automatically analyzes detected issues using an **RHOAI-hosted LLM** (llama-32-3b-instruct via vLLM), and creates structured **JIRA tickets** with AI-generated root-cause analysis and resolution steps — all without human intervention.
 
 ---
 
 ## How It Works
 
 ```
-OpenShift (jboss-production)          jboss-monitoring namespace
-┌─────────────────────────┐          ┌──────────────────────────────────────┐
-│  jboss-instance-0       │          │  JBoss AI Monitor (Python)           │
-│  jboss-instance-1       │◄─────────│                                      │
-│  (EAP 8 via Operator)   │  watch   │  ┌──────────┐  ┌──────────────────┐  │
-└─────────────────────────┘          │  │ 4 Monitor│  │  RHOAI LLM       │  │
-                                     │  │ modules  │─►│  llama-32-3b     │  │
-                                     │  └──────────┘  └────────┬─────────┘  │
-                                     │                         │            │
-                                     └─────────────────────────┼────────────┘
-                                                               │
-                                                               ▼
-                                                    JIRA project KAN
-                                                    (auto-created tickets)
+OpenShift cluster A                   OpenShift cluster B (RHOAI)
+(jboss-production namespace)          (my-first-model namespace)
+┌─────────────────────────┐          ┌──────────────────────────────┐
+│  jboss-instance-0       │          │  llama-32-3b-instruct (vLLM) │
+│  (WildFly via Operator) │          │  InferenceService (RHOAI)    │
+└─────────────────────────┘          └──────────────────────────────┘
+         ▲                                         ▲
+         │ watch                                   │ HTTPS /v1
+         │                                         │
+┌────────┴────────────────────────────────────────┴──────┐
+│  JBoss AI Monitor (jboss-monitoring namespace)          │
+│                                                         │
+│  ┌──────────┐  issues   ┌──────────┐  resolution  ┌──────────┐  │
+│  │ 4 Monitor│──────────►│  Dedup   │─────────────►│  RHOAI   │  │
+│  │ modules  │           └──────────┘               │  Agent   │  │
+│  └──────────┘                                      └────┬─────┘  │
+│                                                         │        │
+└─────────────────────────────────────────────────────────┼────────┘
+                                                          │
+                                                          ▼
+                                               JIRA project KAN
+                                               (auto-created tickets)
 ```
 
 Every 60 seconds the monitor runs a full cycle across four detection layers. Any detected issue is sent to the RHOAI-hosted LLM for analysis. The structured response — including root cause, resolution steps, and prevention tips — is written directly into a JIRA ticket.
@@ -58,70 +66,74 @@ jboss-ai-monitor/
 │   └── utils/
 │       └── dedup.py             # Sliding-window deduplication (default 2h)
 ├── k8s/
+│   ├── namespace.yaml           # Creates jboss-monitoring namespace
 │   ├── deployment.yaml          # OpenShift Deployment manifest
 │   ├── configmap.yaml           # Non-sensitive configuration
-│   ├── secret-template.yaml     # Credentials template (do not commit with real values)
+│   ├── secret-template.yaml     # Credentials template (copy to secret.yaml, never commit filled)
 │   ├── serviceaccount.yaml      # ServiceAccount + RBAC
 │   └── jboss-operator/
-│       ├── install.sh           # 6-step EAP Operator + WildFlyServer installer
+│       ├── install.sh           # WildFly Operator + WildFlyServer installer
 │       ├── 00-namespace.yaml
 │       ├── 01-operatorgroup.yaml
-│       ├── 02-subscription.yaml # EAP Operator 3.2.13 from redhat-operators
-│       └── 03-wildflyserver.yaml
+│       ├── 02-subscription.yaml
+│       ├── 03-wildflyserver.yaml  # WildFlyServer CR (quay.io/wildfly/wildfly:latest)
+│       └── 04-wildfly-operator-direct.yaml  # Community WildFly Operator (no OLM)
 ├── Dockerfile                   # Multi-stage UBI9 Python image
 ├── requirements.txt
-└── test-stack.sh                # 10-point end-to-end smoke test
+├── .env.example                 # Local dev environment template
+└── test-stack.sh                # End-to-end smoke test
 ```
 
 ---
 
 ## Prerequisites
 
-- OpenShift CRC (`crc start`) or an OpenShift 4.x cluster
+- Two OpenShift 4.x clusters (or one cluster for both workloads):
+  - **Cluster A** — runs the JBoss/WildFly instance and the AI Monitor
+  - **Cluster B** — runs RHOAI with a deployed llama-32-3b-instruct (or compatible) model serving endpoint
 - `oc` CLI logged in as `kubeadmin`
-- `docker` CLI with access to `quay.io` (or your own registry)
-- Red Hat account with `registry.redhat.io` access (for EAP 8 image)
-- RHOAI cluster with a deployed model serving endpoint (llama-32-3b-instruct or compatible)
+- `docker` or `podman` CLI with access to your container registry (e.g. `quay.io`)
 - Atlassian JIRA Cloud account + API token
 
 ---
 
 ## Deployment
 
-### 1. Install JBoss EAP 8 via Operator
+### 1. Install WildFly via Operator
 
 ```bash
-# Login to registry.redhat.io with your Red Hat account first
-docker login registry.redhat.io -u <your-rh-email>
-
-# Create pull secret from your docker config
-oc create secret generic rh-registry-pull-secret \
-  --from-file=.dockerconfigjson=$HOME/.docker/config.json \
-  --type=kubernetes.io/dockerconfigjson \
-  -n jboss-production
-
-# Run the installer
+# Run the installer (handles namespace, operator, and WildFlyServer CR)
 bash k8s/jboss-operator/install.sh
 ```
 
-The installer creates the `jboss-production` namespace, installs the Red Hat EAP Operator 3.2.13 via OLM, and deploys a 2-replica WildFlyServer instance.
+The installer creates the `jboss-production` namespace, installs the WildFly Operator, and deploys a WildFlyServer instance using `quay.io/wildfly/wildfly:latest`.
+
+If OLM-based install fails, the community WildFly Operator can be installed directly:
+
+```bash
+oc apply -f k8s/jboss-operator/04-wildfly-operator-direct.yaml
+oc apply -f k8s/jboss-operator/03-wildflyserver.yaml
+```
 
 ### 2. Configure credentials
 
-Copy `k8s/secret-template.yaml`, fill in your real values, and apply:
+Copy the template, fill in real values, and apply:
 
 ```bash
-# Edit the file — never commit real credentials
-vi k8s/secret-template.yaml
+# Copy the template (never commit secret.yaml with real values)
+cp k8s/secret-template.yaml k8s/secret.yaml
 
-oc apply -f k8s/secret-template.yaml -n jboss-monitoring
+# Edit with your credentials
+vi k8s/secret.yaml
+
+oc apply -f k8s/secret.yaml -n jboss-monitoring
 ```
 
 Required secret keys:
 
 | Key | Value |
 |---|---|
-| `RHOAI_API_KEY` | OpenShift service account token with access to the RHOAI inference endpoint |
+| `RHOAI_API_KEY` | Token from the **RHOAI cluster** — run `oc whoami -t` after logging into the RHOAI cluster |
 | `JIRA_USER` | Your Atlassian account email |
 | `JIRA_TOKEN` | From [id.atlassian.com/manage-profile/security/api-tokens](https://id.atlassian.com/manage-profile/security/api-tokens) |
 
@@ -135,7 +147,7 @@ HEALTH_CHECK_URLS: "http://jboss-instance-loadbalancer.jboss-production.svc.clus
 JIRA_URL: "https://<your-org>.atlassian.net"
 JIRA_PROJECT_KEY: "KAN"                   # Your JIRA project key
 JIRA_ISSUE_TYPE: "Task"                   # Must match a valid type in your project
-RHOAI_API_URL: "https://llama-32-3b-instruct-predictor-my-first-model.apps.<cluster>/v1"
+RHOAI_API_URL: "https://<model-name>-<namespace>.apps.<rhoai-cluster>/v1"
 RHOAI_MODEL_NAME: "llama-32-3b-instruct"
 DEDUP_WINDOW_MINUTES: "120"               # Suppress duplicate tickets for 2 hours
 ```
@@ -168,7 +180,7 @@ oc create role jboss-monitor-reader \
 
 oc create rolebinding jboss-monitor-reader-binding \
   --role=jboss-monitor-reader \
-  --serviceaccount=jboss-monitoring:jboss-ai-monitor-sa \
+  --serviceaccount=jboss-monitoring:jboss-ai-monitor \
   -n jboss-production
 ```
 
@@ -177,9 +189,6 @@ oc create rolebinding jboss-monitor-reader-binding \
 ## Verifying the Deployment
 
 ```bash
-# Run the full 10-point smoke test
-bash test-stack.sh
-
 # Tail live logs
 oc logs -f deployment/jboss-ai-monitor -n jboss-monitoring
 ```
@@ -221,7 +230,7 @@ All variables are loaded from the ConfigMap and Secret. Every variable has a def
 | `JIRA_URL` | ConfigMap | — | JIRA instance base URL |
 | `JIRA_PROJECT_KEY` | ConfigMap | `OPS` | Target JIRA project |
 | `JIRA_ISSUE_TYPE` | ConfigMap | `Task` | Issue type (must exist in your project) |
-| `RHOAI_API_URL` | ConfigMap | — | RHOAI inference endpoint base URL (must end in `/v1`) |
+| `RHOAI_API_URL` | ConfigMap | — | RHOAI inference endpoint base URL on the RHOAI cluster (must end in `/v1`) |
 | `RHOAI_MODEL_NAME` | ConfigMap | — | Deployed model name as shown in RHOAI |
 | `RHOAI_MAX_TOKENS` | ConfigMap | `2048` | Max tokens per AI response |
 | `DEDUP_WINDOW_MINUTES` | ConfigMap | `120` | Duplicate suppression window |
@@ -229,7 +238,7 @@ All variables are loaded from the ConfigMap and Secret. Every variable has a def
 | `ENABLE_ALERT_MONITOR` | ConfigMap | `true` | Toggle AlertManager polling |
 | `ENABLE_LOG_MONITOR` | ConfigMap | `true` | Toggle log pattern scanning |
 | `ENABLE_HEALTH_MONITOR` | ConfigMap | `true` | Toggle health endpoint probing |
-| `RHOAI_API_KEY` | Secret | — | OpenShift service account token for RHOAI inference endpoint |
+| `RHOAI_API_KEY` | Secret | — | Token from the RHOAI cluster (`oc whoami -t` on the RHOAI cluster) |
 | `JIRA_USER` | Secret | — | JIRA account email |
 | `JIRA_TOKEN` | Secret | — | JIRA API token |
 
@@ -265,15 +274,17 @@ oc scale deployment/jboss-ai-monitor --replicas=0 -n jboss-monitoring
 
 ## Architecture Notes
 
+**Multi-cluster setup**: The AI Monitor and JBoss instance run on one OpenShift cluster while the RHOAI model serving endpoint runs on a separate RHOAI cluster. The monitor reaches the model over HTTPS using the external route URL. The `RHOAI_API_KEY` must be a token from the RHOAI cluster, obtained by running `oc whoami -t` after logging into that cluster.
+
 **AI function-calling**: The `resolution_agent.py` uses the OpenAI-compatible `tools` API with `tool_choice={"type":"function","function":{"name":"provide_resolution"}}` to force the RHOAI-hosted model to always respond via a structured JSON function call rather than free-form text. This guarantees a parseable `Resolution` object with consistent fields every time.
 
 **Deduplication**: Issues are fingerprinted by MD5 hash of `(issue_type + title + severity)`. Within the dedup window, repeat occurrences are detected and logged but no new JIRA ticket is created.
 
 **ADF descriptions**: JIRA Cloud REST API v3 requires Atlassian Document Format for rich text. The `jira_client.py` builds ADF nodes (headings, paragraphs, code blocks) to produce well-structured tickets with the AI analysis inline.
 
-**OpenShift SCC compliance**: The deployment uses `runAsNonRoot: true` only — no hardcoded UIDs — so it passes the `restricted-v2` Security Context Constraint on OpenShift CRC.
+**OpenShift SCC compliance**: The deployment uses `runAsNonRoot: true` only — no hardcoded UIDs — so it passes the `restricted-v2` Security Context Constraint on OpenShift 4.x.
 
-**Health endpoint**: The EAP 8 runtime image (`eap8-openjdk17-runtime-openshift-rhel8`) does not expose the WildFly management interface (port 9990) on the pod network. Use port 8080 for basic liveness checking, or deploy an application with MicroProfile Health for full UP/DOWN/LIVE status at `/health`.
+**Health endpoint**: The WildFly community image exposes port 8080 for application traffic. Use `/health` for MicroProfile Health status (UP/DOWN/LIVE) if your application includes the MicroProfile Health extension.
 
 ---
 
@@ -283,7 +294,7 @@ oc scale deployment/jboss-ai-monitor --replicas=0 -n jboss-monitoring
 quay.io/nnsaraiya/jboss-ai-monitor/jboss-ai-monitor:1.0.0
 ```
 
-Built from `registry.ubi.io/ubi9/python-311` (UBI9), multi-stage. Public registry — no pull secret needed for the monitor image itself.
+Built from `registry.access.redhat.com/ubi9/python-311` (UBI9), multi-stage. Public registry — no pull secret needed for the monitor image itself.
 
 ---
 
