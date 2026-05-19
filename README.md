@@ -227,12 +227,20 @@ All variables are loaded from the ConfigMap and Secret. Every variable has a def
 |---|---|---|---|
 | `JBOSS_NAMESPACE` | ConfigMap | `default` | Namespace where JBoss pods run |
 | `JBOSS_LABEL_SELECTOR` | ConfigMap | `app.kubernetes.io/managed-by=wildfly-operator` | Label selector for JBoss pods |
+| `JBOSS_INSTANCE_NAME` | ConfigMap | _(all pods)_ | Optional: watch only this WildFly CR name |
 | `CHECK_INTERVAL_SECONDS` | ConfigMap | `60` | Monitoring cycle frequency |
-| `HEALTH_CHECK_URLS` | ConfigMap | _(auto-discover)_ | Comma-separated health URLs |
-| `HEALTH_CHECK_PATH` | ConfigMap | `/health` | Path for auto-discovered health checks |
+| `HEALTH_CHECK_TIMEOUT` | ConfigMap | `10` | HTTP timeout for health probes (seconds) |
+| `HEALTH_CHECK_URLS` | ConfigMap | _(auto-discover)_ | Comma-separated health URLs to probe |
+| `HEALTH_CHECK_PATH` | ConfigMap | `/health/ready` | Path appended to auto-discovered service URLs |
+| `LOG_TAIL_LINES` | ConfigMap | `300` | Number of recent log lines to fetch per pod per cycle |
+| `LOG_ERROR_PATTERNS` | ConfigMap | `SEVERE,OutOfMemoryError,…` | Comma-separated regex patterns for log scanning |
+| `ALERTMANAGER_URL` | ConfigMap | _(in-cluster default)_ | AlertManager endpoint for firing alerts |
+| `PROMETHEUS_URL` | ConfigMap | _(in-cluster default)_ | Prometheus endpoint for active alert queries |
+| `ALERT_NAME_FILTER` | ConfigMap | `WildFly\|JBoss\|EAP\|Helidon` | Regex to filter relevant alert names |
 | `JIRA_URL` | ConfigMap | — | JIRA instance base URL |
 | `JIRA_PROJECT_KEY` | ConfigMap | `OPS` | Target JIRA project |
 | `JIRA_ISSUE_TYPE` | ConfigMap | `Task` | Issue type (must exist in your project) |
+| `JIRA_LABELS` | ConfigMap | `jboss,openshift,automated` | Comma-separated labels applied to every ticket |
 | `RHOAI_API_URL` | ConfigMap | — | RHOAI inference endpoint base URL on the RHOAI cluster (must end in `/v1`) |
 | `RHOAI_MODEL_NAME` | ConfigMap | — | Deployed model name as shown in RHOAI |
 | `RHOAI_MAX_TOKENS` | ConfigMap | `2048` | Max tokens per AI response |
@@ -241,6 +249,7 @@ All variables are loaded from the ConfigMap and Secret. Every variable has a def
 | `ENABLE_ALERT_MONITOR` | ConfigMap | `true` | Toggle AlertManager polling |
 | `ENABLE_LOG_MONITOR` | ConfigMap | `true` | Toggle log pattern scanning |
 | `ENABLE_HEALTH_MONITOR` | ConfigMap | `true` | Toggle health endpoint probing |
+| `LOG_LEVEL` | ConfigMap | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
 | `RHOAI_API_KEY` | Secret | — | Token from the RHOAI cluster (`oc whoami -t` on the RHOAI cluster) |
 | `JIRA_USER` | Secret | — | JIRA account email |
 | `JIRA_TOKEN` | Secret | — | JIRA API token |
