@@ -172,19 +172,21 @@ class ResolutionAgent:
         _junk = {
             "prevention_tips", "references", "confidence",
             "root_cause_analysis", "resolution_steps",
-            "prevention_tips):", "references):", "confidence):",
-            "references]:", "references]", "prevention_tips]:", "prevention_tips]",
-            "resolution_steps_count", "prevention_tips_count", "references_count",
+            "prevention_tips_count", "references_count", "resolution_steps_count",
+            # confidence values that leak as standalone list items
+            "high", "medium", "low",
         }
         _leading_number = re.compile(r"^\s*\d+[\.\)]\s*")
         _leading_bullet = re.compile(r"^\s*[•\-\*]\s*")
         _embedded_number = re.compile(r"\s+\d+\.\s+")
+        _trailing_punct = re.compile(r"[\[\]():{}\s,]+$")
         cleaned = []
         for item in items:
             # Split items that contain embedded numbering like "Tip one. 2. Tip two. 3. Tip three."
             sub_items = _embedded_number.split(item)
             for sub in sub_items:
-                stripped = sub.strip().rstrip("):]")
+                # Strip trailing JSON punctuation (catches "prevention_tips[]): [" → "prevention_tips")
+                stripped = _trailing_punct.sub("", sub.strip())
                 if not stripped or stripped.lower() in _junk:
                     continue
                 # Remove leading bullet or number markers
