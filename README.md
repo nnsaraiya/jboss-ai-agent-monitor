@@ -158,7 +158,8 @@ DEDUP_WINDOW_MINUTES: "120"               # Suppress duplicate tickets for 2 hou
 ### 4. Build and push the image
 
 ```bash
-docker build -t quay.io/<your-username>/jboss-ai-monitor:1.0.0 .
+docker build --platform linux/amd64 \
+  -t quay.io/<your-username>/jboss-ai-monitor:1.0.0 .
 docker push quay.io/<your-username>/jboss-ai-monitor:1.0.0
 ```
 
