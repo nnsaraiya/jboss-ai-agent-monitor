@@ -167,7 +167,7 @@ class ResolutionAgent:
 
     @staticmethod
     def _clean_list(items: list) -> list:
-        """Strip model artifacts — leaked JSON field names, empty entries, leading numbers, and embedded multi-item strings."""
+        """Strip model artifacts — leaked field names, leading/trailing punctuation, and packed multi-item strings."""
         import re
         _junk = {
             "prevention_tips", "references", "confidence",
@@ -176,22 +176,28 @@ class ResolutionAgent:
             # confidence values that leak as standalone list items
             "high", "medium", "low",
         }
-        _leading_number = re.compile(r"^\s*\d+[\.\)]\s*")
-        _leading_bullet = re.compile(r"^\s*[•\-\*]\s*")
-        _embedded_number = re.compile(r"\s+\d+\.\s+")
-        _trailing_punct = re.compile(r"[\[\]():{}\s,]+$")
+        _leading_punct   = re.compile(r"^[\[\]()\s]+")
+        _trailing_punct  = re.compile(r"[\[\]():{}\s,]+$")
+        _leading_number  = re.compile(r"^\s*\d+[\.\)]\s*")
+        _leading_bullet  = re.compile(r"^\s*[•\-\*]\s*")
+        _embedded_number = re.compile(r"\s+\d+\.\s+")          # "text 2. more text"
+        _bracketed_multi = re.compile(r"\]\s*,\s*\[")           # "[item1], [item2]"
+        _sentence_split  = re.compile(r"(?<=\.)\s+(?=[A-Z])")    # "sentence. Next sentence"
+
         cleaned = []
         for item in items:
-            # Split items that contain embedded numbering like "Tip one. 2. Tip two. 3. Tip three."
-            sub_items = _embedded_number.split(item)
-            for sub in sub_items:
-                # Strip trailing JSON punctuation (catches "prevention_tips[]): [" → "prevention_tips")
-                stripped = _trailing_punct.sub("", sub.strip())
-                if not stripped or stripped.lower() in _junk:
-                    continue
-                # Remove leading bullet or number markers
-                stripped = _leading_bullet.sub("", stripped)
-                stripped = _leading_number.sub("", stripped).strip()
-                if stripped and stripped.lower() not in _junk:
-                    cleaned.append(stripped)
+            # 1. Split "[item1], [item2]" style concatenated bracketed refs
+            for bracket_part in _bracketed_multi.split(item):
+                # 2. Split "tip one. 2. tip two" embedded numbering
+                for num_part in _embedded_number.split(bracket_part):
+                    # 3. Split independent sentences packed into one string
+                    for sub in _sentence_split.split(num_part):
+                        stripped = _leading_punct.sub("", sub.strip())
+                        stripped = _trailing_punct.sub("", stripped)
+                        if not stripped or len(stripped) < 8 or stripped.lower() in _junk:
+                            continue
+                        stripped = _leading_bullet.sub("", stripped)
+                        stripped = _leading_number.sub("", stripped).strip()
+                        if stripped and stripped.lower() not in _junk:
+                            cleaned.append(stripped)
         return cleaned
