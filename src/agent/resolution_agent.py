@@ -174,6 +174,7 @@ class ResolutionAgent:
             "root_cause_analysis", "resolution_steps",
             "prevention_tips):", "references):", "confidence):",
             "references]:", "references]", "prevention_tips]:", "prevention_tips]",
+            "resolution_steps_count", "prevention_tips_count", "references_count",
         }
         _leading_number = re.compile(r"^\s*\d+[\.\)]\s*")
         _leading_bullet = re.compile(r"^\s*[•\-\*]\s*")
