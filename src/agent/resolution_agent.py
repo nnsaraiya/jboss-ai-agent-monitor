@@ -167,16 +167,19 @@ class ResolutionAgent:
 
     @staticmethod
     def _clean_list(items: list) -> list:
-        """Strip model artifacts — leaked JSON field names or empty entries."""
+        """Strip model artifacts — leaked JSON field names, empty entries, and leading numbers."""
+        import re
         _junk = {
             "prevention_tips", "references", "confidence",
             "root_cause_analysis", "resolution_steps",
             "prevention_tips):", "references):", "confidence):",
         }
+        _leading_number = re.compile(r"^\s*\d+[\.\)]\s*")
         cleaned = []
         for item in items:
             stripped = item.strip().rstrip("):")
             if not stripped or stripped.lower() in _junk:
                 continue
-            cleaned.append(item.strip())
+            # Remove leading "1. " or "1) " added by the model to avoid double-numbering
+            cleaned.append(_leading_number.sub("", item.strip()))
         return cleaned
