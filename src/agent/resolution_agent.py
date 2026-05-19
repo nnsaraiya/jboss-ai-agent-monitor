@@ -167,19 +167,28 @@ class ResolutionAgent:
 
     @staticmethod
     def _clean_list(items: list) -> list:
-        """Strip model artifacts — leaked JSON field names, empty entries, and leading numbers."""
+        """Strip model artifacts — leaked JSON field names, empty entries, leading numbers, and embedded multi-item strings."""
         import re
         _junk = {
             "prevention_tips", "references", "confidence",
             "root_cause_analysis", "resolution_steps",
             "prevention_tips):", "references):", "confidence):",
+            "references]:", "references]", "prevention_tips]:", "prevention_tips]",
         }
         _leading_number = re.compile(r"^\s*\d+[\.\)]\s*")
+        _leading_bullet = re.compile(r"^\s*[•\-\*]\s*")
+        _embedded_number = re.compile(r"\s+\d+\.\s+")
         cleaned = []
         for item in items:
-            stripped = item.strip().rstrip("):")
-            if not stripped or stripped.lower() in _junk:
-                continue
-            # Remove leading "1. " or "1) " added by the model to avoid double-numbering
-            cleaned.append(_leading_number.sub("", item.strip()))
+            # Split items that contain embedded numbering like "Tip one. 2. Tip two. 3. Tip three."
+            sub_items = _embedded_number.split(item)
+            for sub in sub_items:
+                stripped = sub.strip().rstrip("):]")
+                if not stripped or stripped.lower() in _junk:
+                    continue
+                # Remove leading bullet or number markers
+                stripped = _leading_bullet.sub("", stripped)
+                stripped = _leading_number.sub("", stripped).strip()
+                if stripped and stripped.lower() not in _junk:
+                    cleaned.append(stripped)
         return cleaned
