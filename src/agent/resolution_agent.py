@@ -157,10 +157,26 @@ class ResolutionAgent:
                     inp = json.loads(tool_call.function.arguments)
                     return Resolution(
                         root_cause_analysis=inp.get("root_cause_analysis", ""),
-                        resolution_steps=inp.get("resolution_steps", []),
-                        prevention_tips=inp.get("prevention_tips", []),
-                        references=inp.get("references", []),
+                        resolution_steps=self._clean_list(inp.get("resolution_steps", [])),
+                        prevention_tips=self._clean_list(inp.get("prevention_tips", [])),
+                        references=self._clean_list(inp.get("references", [])),
                         confidence=inp.get("confidence", "medium"),
                     )
 
         raise ValueError("RHOAI model response did not contain a provide_resolution function call")
+
+    @staticmethod
+    def _clean_list(items: list) -> list:
+        """Strip model artifacts — leaked JSON field names or empty entries."""
+        _junk = {
+            "prevention_tips", "references", "confidence",
+            "root_cause_analysis", "resolution_steps",
+            "prevention_tips):", "references):", "confidence):",
+        }
+        cleaned = []
+        for item in items:
+            stripped = item.strip().rstrip("):")
+            if not stripped or stripped.lower() in _junk:
+                continue
+            cleaned.append(item.strip())
+        return cleaned
