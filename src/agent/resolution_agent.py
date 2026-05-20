@@ -10,6 +10,7 @@ import json
 import logging
 from typing import Any, Dict
 
+import httpx
 from openai import OpenAI
 
 from src.config import Config
@@ -104,6 +105,7 @@ class ResolutionAgent:
         self._client = OpenAI(
             base_url=config.rhoai_api_url,
             api_key=config.rhoai_api_key,
+            http_client=httpx.Client(verify=False),
         )
 
     def analyse(self, issue: Issue) -> Resolution:
