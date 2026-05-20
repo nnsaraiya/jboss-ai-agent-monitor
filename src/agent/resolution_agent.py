@@ -186,7 +186,9 @@ class ResolutionAgent:
         _embedded_number = re.compile(r"\s+\d+\.\s+")          # "text 2. more text"
         _multi_ref       = re.compile(r"(?:\]\(https?://[^\s\)]*\)?)?\s*,\s*\[")  # "[t](url), [t]" or "[t], [t]"
         _markdown_link   = re.compile(r"\]\(https?://[^\)\s]*\)?")               # strip "](URL)" suffix
-        _sentence_split  = re.compile(r"(?<=\.)\s+(?=[A-Z])")    # "sentence. Next sentence"
+        _sentence_split  = re.compile(                                    # "Action. Next action." but not "Action. This helps."
+            r"(?<=\.)\s+(?=[A-Z])(?!This\b|That\b|These\b|Those\b|It\b|They\b|If\b|Additionally\b|Furthermore\b|However\b|Also\b|Note\b)"
+        )
 
         cleaned = []
         for item in items:
