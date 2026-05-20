@@ -184,13 +184,16 @@ class ResolutionAgent:
         _leading_number  = re.compile(r"^\s*\d+[\.\)]\s*")
         _leading_bullet  = re.compile(r"^\s*[•\-\*]\s*")
         _embedded_number = re.compile(r"\s+\d+\.\s+")          # "text 2. more text"
-        _bracketed_multi = re.compile(r"\]\s*,\s*\[")           # "[item1], [item2]"
+        _multi_ref       = re.compile(r"(?:\]\(https?://[^\s\)]*\)?)?\s*,\s*\[")  # "[t](url), [t]" or "[t], [t]"
+        _markdown_link   = re.compile(r"\]\(https?://[^\)\s]*\)?")               # strip "](URL)" suffix
         _sentence_split  = re.compile(r"(?<=\.)\s+(?=[A-Z])")    # "sentence. Next sentence"
 
         cleaned = []
         for item in items:
-            # 1. Split "[item1], [item2]" style concatenated bracketed refs
-            for bracket_part in _bracketed_multi.split(item):
+            # 1. Split "[t](url), [t]" and "[t], [t]" multi-ref strings
+            for bracket_part in _multi_ref.split(item):
+                # Strip remaining "](URL)" markdown link suffixes
+                bracket_part = _markdown_link.sub("", bracket_part)
                 # 2. Split "tip one. 2. tip two" embedded numbering
                 for num_part in _embedded_number.split(bracket_part):
                     # 3. Split independent sentences packed into one string
