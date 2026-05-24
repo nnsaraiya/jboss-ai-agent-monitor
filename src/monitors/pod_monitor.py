@@ -147,6 +147,15 @@ class PodMonitor:
                     # Only flag once per spike (new restarts since last cycle)
                     new_restarts = restart_count - last
                     if new_restarts >= 2:
+                        # Include last termination reason/exit code for richer AI context
+                        last_exit_code = None
+                        last_reason = None
+                        last_message = None
+                        if cs.last_state and cs.last_state.terminated:
+                            term = cs.last_state.terminated
+                            last_exit_code = term.exit_code
+                            last_reason = term.reason
+                            last_message = term.message
                         issues.append(
                             Issue(
                                 issue_type=IssueType.POD_CRASH,
@@ -156,12 +165,17 @@ class PodMonitor:
                                     f"Container '{container_name}' in pod '{pod_name}' "
                                     f"has restarted {restart_count} times total "
                                     f"({new_restarts} new since last check). "
+                                    f"Last termination: exit_code={last_exit_code}, "
+                                    f"reason={last_reason}. "
                                     f"This suggests a recurring startup or runtime failure."
                                 ),
                                 raw_data={
                                     "restart_count": restart_count,
                                     "new_restarts_this_cycle": new_restarts,
                                     "pod_phase": pod.status.phase,
+                                    "last_exit_code": last_exit_code,
+                                    "last_termination_reason": last_reason,
+                                    "last_termination_message": last_message,
                                 },
                                 namespace=self._cfg.namespace,
                                 pod_name=pod_name,
