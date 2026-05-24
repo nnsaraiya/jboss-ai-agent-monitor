@@ -105,7 +105,7 @@ class ResolutionAgent:
         self._client = OpenAI(
             base_url=config.rhoai_api_url,
             api_key=config.rhoai_api_key,
-            http_client=httpx.Client(verify=False),
+            http_client=httpx.Client(verify=False, http2=False),
             timeout=300.0,
         )
 
