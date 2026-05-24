@@ -159,7 +159,7 @@ class ResolutionAgent:
                 if tool_call.function.name == "provide_resolution":
                     inp = json.loads(tool_call.function.arguments)
                     return Resolution(
-                        root_cause_analysis=inp.get("root_cause_analysis", ""),
+                        root_cause_analysis=self._clean_text(inp.get("root_cause_analysis", "")),
                         resolution_steps=self._clean_list(inp.get("resolution_steps", [])),
                         prevention_tips=self._clean_list(inp.get("prevention_tips", [])),
                         references=self._clean_list(inp.get("references", [])),
@@ -167,6 +167,14 @@ class ResolutionAgent:
                     )
 
         raise ValueError("RHOAI model response did not contain a provide_resolution function call")
+
+    @staticmethod
+    def _clean_text(text: str) -> str:
+        """Unescape model double-escaping artifacts in free-text fields."""
+        import re
+        text = text.replace("\\'", "'").replace('\\n', '\n').replace('\\t', '\t')
+        text = re.sub(r"\\u([0-9a-fA-F]{4})", lambda m: chr(int(m.group(1), 16)), text)
+        return text
 
     @staticmethod
     def _clean_list(items: list) -> list:
@@ -195,8 +203,8 @@ class ResolutionAgent:
 
         cleaned = []
         for item in items:
-            # 0. Unescape model double-escaping: literal \n → newline, \uXXXX → char
-            item = item.replace('\\n', '\n').replace('\\t', '\t')
+            # 0. Unescape model double-escaping: literal \n → newline, \' → ', \uXXXX → char
+            item = item.replace("\\'", "'").replace('\\n', '\n').replace('\\t', '\t')
             item = _unicode_escape.sub(lambda m: chr(int(m.group(1), 16)), item)
             # Strip trailing next-step-number bleed ("\n\n2." at end of item)
             item = _trailing_stepno.sub("", item).strip()
