@@ -195,6 +195,7 @@ class ResolutionAgent:
         _multi_ref       = re.compile(r"(?:\]\(https?://[^\s\)]*\)?)?\s*,\s*\[")  # "[t](url), [t]" or "[t], [t]"
         _markdown_link   = re.compile(r"\]\(https?://[^\)\s]*\)?")               # strip "](URL)" suffix
         _unclosed_url    = re.compile(r"\s*\(https?://\S*$")          # trailing "(https://..." with no closing )
+        _bare_url        = re.compile(r"\s*https?://\S+$")            # trailing bare URL with no surrounding text
         _trailing_stepno = re.compile(r"\n\n?\d+\.\s*$")              # trailing "\n\n2." next-step bleed
         _unicode_escape  = re.compile(r"\\u([0-9a-fA-F]{4})")         # literal \uXXXX double-escaped by model
         _sentence_split  = re.compile(                                 # "Action. Next action." but not "Action. This helps."
@@ -213,8 +214,9 @@ class ResolutionAgent:
             for bracket_part in _multi_ref.split(item):
                 # Strip remaining "](URL)" markdown link suffixes
                 bracket_part = _markdown_link.sub("", bracket_part)
-                # Strip unclosed "(https://..." trailing URLs in references
+                # Strip unclosed "(https://..." and bare trailing URLs
                 bracket_part = _unclosed_url.sub("", bracket_part)
+                bracket_part = _bare_url.sub("", bracket_part)
                 # 2. Split "tip one.\n\n2. tip two" embedded numbering
                 for num_part in _embedded_number.split(bracket_part):
                     # 3. Split independent sentences packed into one string
