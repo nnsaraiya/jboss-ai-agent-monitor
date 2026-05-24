@@ -13,7 +13,7 @@ data:
   JBOSS_INSTANCE_NAME: ""              # Optional: specific WildFly CR name
 
   # ── Monitoring intervals ────────────────────────────────────────────────
-  CHECK_INTERVAL_SECONDS: "15"         # How often to run a full cycle (seconds)
+  CHECK_INTERVAL_SECONDS: "30"         # How often to run a full cycle (seconds)
   HEALTH_CHECK_TIMEOUT: "10"           # HTTP timeout for health probes (seconds)
 
   # ── Health endpoints ────────────────────────────────────────────────────
