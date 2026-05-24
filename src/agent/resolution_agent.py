@@ -183,20 +183,31 @@ class ResolutionAgent:
         _trailing_punct  = re.compile(r"[\[\]():{}\s,]+$")
         _leading_number  = re.compile(r"^\s*\d+[\.\)]\s*")
         _leading_bullet  = re.compile(r"^\s*[•\-\*]\s*")
-        _embedded_number = re.compile(r"\s+\d+\.\s+")          # "text 2. more text"
+        _embedded_number = re.compile(r"(?:\n\n?|\s{2,})\d+\.\s+")   # "text\n\n2. more" or "text  2. more"
         _multi_ref       = re.compile(r"(?:\]\(https?://[^\s\)]*\)?)?\s*,\s*\[")  # "[t](url), [t]" or "[t], [t]"
         _markdown_link   = re.compile(r"\]\(https?://[^\)\s]*\)?")               # strip "](URL)" suffix
-        _sentence_split  = re.compile(                                    # "Action. Next action." but not "Action. This helps."
+        _unclosed_url    = re.compile(r"\s*\(https?://\S*$")          # trailing "(https://..." with no closing )
+        _trailing_stepno = re.compile(r"\n\n?\d+\.\s*$")              # trailing "\n\n2." next-step bleed
+        _unicode_escape  = re.compile(r"\\u([0-9a-fA-F]{4})")         # literal \uXXXX double-escaped by model
+        _sentence_split  = re.compile(                                 # "Action. Next action." but not "Action. This helps."
             r"(?<=\.)\s+(?=[A-Z])(?!This\b|That\b|These\b|Those\b|It\b|They\b|If\b|Additionally\b|Furthermore\b|However\b|Also\b|Note\b)"
         )
 
         cleaned = []
         for item in items:
+            # 0. Unescape model double-escaping: literal \n → newline, \uXXXX → char
+            item = item.replace('\\n', '\n').replace('\\t', '\t')
+            item = _unicode_escape.sub(lambda m: chr(int(m.group(1), 16)), item)
+            # Strip trailing next-step-number bleed ("\n\n2." at end of item)
+            item = _trailing_stepno.sub("", item).strip()
+
             # 1. Split "[t](url), [t]" and "[t], [t]" multi-ref strings
             for bracket_part in _multi_ref.split(item):
                 # Strip remaining "](URL)" markdown link suffixes
                 bracket_part = _markdown_link.sub("", bracket_part)
-                # 2. Split "tip one. 2. tip two" embedded numbering
+                # Strip unclosed "(https://..." trailing URLs in references
+                bracket_part = _unclosed_url.sub("", bracket_part)
+                # 2. Split "tip one.\n\n2. tip two" embedded numbering
                 for num_part in _embedded_number.split(bracket_part):
                     # 3. Split independent sentences packed into one string
                     for sub in _sentence_split.split(num_part):
