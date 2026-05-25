@@ -1,6 +1,6 @@
 # JBoss AI Monitor
 
-An agentic AI application that continuously monitors a **JBoss/WildFly** instance running on **OpenShift**, automatically analyzes detected issues using an **RHOAI-hosted LLM** (llama-32-3b-instruct via vLLM), and creates structured **JIRA tickets** with AI-generated root-cause analysis and resolution steps — all without human intervention.
+An agentic AI application that continuously monitors a **JBoss/WildFly** instance running on **OpenShift**, automatically analyzes detected issues using an **RHOAI-hosted LLM** (any vLLM-compatible model configured via `RHOAI_MODEL_NAME`), and creates structured **JIRA tickets** with AI-generated root-cause analysis and resolution steps — all without human intervention.
 
 ---
 
@@ -10,7 +10,7 @@ An agentic AI application that continuously monitors a **JBoss/WildFly** instanc
 OpenShift cluster A                   OpenShift cluster B (RHOAI)
 (jboss-production namespace)          (my-first-model namespace)
 ┌─────────────────────────┐          ┌──────────────────────────────┐
-│  jboss-instance-0       │          │  llama-32-3b-instruct (vLLM) │
+│  jboss-instance-0       │          │  <RHOAI_MODEL_NAME> (vLLM)   │
 │  (WildFly via Operator) │          │  InferenceService (RHOAI)    │
 └─────────────────────────┘          └──────────────────────────────┘
          ▲                                         ▲
@@ -31,7 +31,7 @@ OpenShift cluster A                   OpenShift cluster B (RHOAI)
                                                (auto-created tickets)
 ```
 
-Every 60 seconds the monitor runs a full cycle across four detection layers. Any detected issue is sent to the RHOAI-hosted LLM for analysis. The structured response — including root cause, resolution steps, and prevention tips — is written directly into a JIRA ticket.
+Every `CHECK_INTERVAL_SECONDS` (default: 60s) the monitor runs a full cycle across four detection layers. Any detected issue is sent to the RHOAI-hosted LLM for analysis. The structured response — including root cause, resolution steps, and prevention tips — is written directly into a JIRA ticket.
 
 ---
 
@@ -51,7 +51,7 @@ Every 60 seconds the monitor runs a full cycle across four detection layers. Any
 ```
 jboss-ai-monitor/
 ├── src/
-│   ├── main.py                  # MonitoringAgent — orchestrates all monitors, 60s loop
+│   ├── main.py                  # MonitoringAgent — orchestrates all monitors, configurable interval loop
 │   ├── config.py                # All config loaded from env vars with defaults
 │   ├── models.py                # Issue, Resolution, JiraTicket dataclasses
 │   ├── monitors/
@@ -90,7 +90,7 @@ jboss-ai-monitor/
 
 - Two OpenShift 4.x clusters (or one cluster for both workloads):
   - **Cluster A** — runs the JBoss/WildFly instance and the AI Monitor
-  - **Cluster B** — runs RHOAI with a deployed llama-32-3b-instruct (or compatible) model serving endpoint
+  - **Cluster B** — runs RHOAI with a deployed vLLM-compatible model serving endpoint (e.g. llama-3.1-8b-instruct, granite-3.1-8b-instruct)
 - `oc` CLI logged in as `kubeadmin`
 - `docker` or `podman` CLI with access to your container registry (e.g. `quay.io`)
 - Atlassian JIRA Cloud account + API token
@@ -151,7 +151,7 @@ JIRA_URL: "https://<your-org>.atlassian.net"
 JIRA_PROJECT_KEY: "KAN"                   # Your JIRA project key
 JIRA_ISSUE_TYPE: "Task"                   # Must match a valid type in your project
 RHOAI_API_URL: "https://<model-name>-<namespace>.apps.<rhoai-cluster>/v1"
-RHOAI_MODEL_NAME: "llama-32-3b-instruct"
+RHOAI_MODEL_NAME: "<deployed-model-name>"     # As shown in RHOAI model server
 DEDUP_WINDOW_MINUTES: "120"               # Suppress duplicate tickets for 2 hours
 ```
 
@@ -205,7 +205,7 @@ AlertMonitor: 0 issue(s)
 LogMonitor: 0 issue(s)
 HealthMonitor: probed 1 endpoint(s), found 0 issue(s)
 No issues detected this cycle.
-Sleeping 60s until next cycle …
+Sleeping 30s until next cycle …
 ```
 
 When an issue is detected:
@@ -250,7 +250,7 @@ All variables are loaded from the ConfigMap and Secret. Every variable has a def
 | `ENABLE_LOG_MONITOR` | ConfigMap | `true` | Toggle log pattern scanning |
 | `ENABLE_HEALTH_MONITOR` | ConfigMap | `true` | Toggle health endpoint probing |
 | `LOG_LEVEL` | ConfigMap | `INFO` | Python logging level (`DEBUG`, `INFO`, `WARNING`, `ERROR`) |
-| `RHOAI_API_KEY` | Secret | — | Token from the RHOAI cluster (`oc whoami -t` on the RHOAI cluster) |
+| `RHOAI_API_KEY` | Secret | — | Token from the RHOAI cluster — use `oc whoami -t` for short-lived or create a `kubernetes.io/service-account-token` Secret for non-expiring token |
 | `JIRA_USER` | Secret | — | JIRA account email |
 | `JIRA_TOKEN` | Secret | — | JIRA API token |
 
@@ -288,7 +288,9 @@ oc scale deployment/jboss-ai-monitor --replicas=0 -n jboss-monitoring
 
 **Multi-cluster setup**: The AI Monitor and JBoss instance run on one OpenShift cluster while the RHOAI model serving endpoint runs on a separate RHOAI cluster. The monitor reaches the model over HTTPS using the external route URL. The `RHOAI_API_KEY` must be a token from the RHOAI cluster, obtained by running `oc whoami -t` after logging into that cluster.
 
-**AI function-calling**: The `resolution_agent.py` uses the OpenAI-compatible `tools` API with `tool_choice={"type":"function","function":{"name":"provide_resolution"}}` to force the RHOAI-hosted model to always respond via a structured JSON function call rather than free-form text. This guarantees a parseable `Resolution` object with consistent fields every time.
+**AI function-calling**: The `resolution_agent.py` uses the OpenAI-compatible `tools` API with `tool_choice={"type":"function","function":{"name":"provide_resolution"}}` to force the RHOAI-hosted model to always respond via a structured JSON function call rather than free-form text. This guarantees a parseable `Resolution` object with consistent fields every time. HTTP/2 is disabled (`http2=False`) for compatibility with OpenShift passthrough routes. Model output is post-processed by `_clean_list()` and `_clean_text()` to strip common LLM artifacts (escaped unicode, embedded numbering, bare URLs, leaked field names).
+
+**Switching models**: Only `RHOAI_API_URL`, `RHOAI_MODEL_NAME`, and `RHOAI_API_KEY` need updating to point to a different model or cluster. The model must support OpenAI-compatible function calling (vLLM serves this on `/v1/chat/completions`).
 
 **Deduplication**: Issues are fingerprinted by MD5 hash of `(issue_type + title + severity)`. Within the dedup window, repeat occurrences are detected and logged but no new JIRA ticket is created.
 
@@ -303,7 +305,7 @@ oc scale deployment/jboss-ai-monitor --replicas=0 -n jboss-monitoring
 ## Image
 
 ```
-quay.io/nnsaraiya/jboss-ai-monitor/jboss-ai-monitor:1.0.0
+quay.io/nnsaraiya/jboss-ai-monitor/jboss-ai-monitor:1.0.1
 ```
 
 Built from `registry.access.redhat.com/ubi9/python-311` (UBI9), multi-stage. Public registry — no pull secret needed for the monitor image itself.
