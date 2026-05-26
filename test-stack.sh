@@ -138,7 +138,7 @@ echo "[ 6 ] Secret"
 if oc get secret jboss-ai-monitor-secret -n "$NAMESPACE" &>/dev/null; then
   pass "Secret 'jboss-ai-monitor-secret' exists"
   # Check required keys
-  for KEY in ANTHROPIC_API_KEY JIRA_USER JIRA_TOKEN; do
+  for KEY in RHOAI_API_KEY JIRA_USER JIRA_TOKEN; do
     VAL=$(oc get secret jboss-ai-monitor-secret -n "$NAMESPACE" \
       -o jsonpath="{.data.$KEY}" 2>/dev/null | base64 -d 2>/dev/null || echo "")
     if [[ -n "$VAL" ]]; then
@@ -218,12 +218,12 @@ if [[ -n "$MONITOR_POD" ]]; then
   # Check for key log signals
   LOGS=$(oc logs "$MONITOR_POD" -n "$NAMESPACE" --tail=100 2>/dev/null)
 
-  if echo "$LOGS" | grep -q "Claude AI analysis complete\|resolution generated\|Successfully created JIRA"; then
+  if echo "$LOGS" | grep -q "resolution generated\|Successfully created JIRA\|Resolution received"; then
     pass "Full AI→JIRA pipeline executed at least once"
-  elif echo "$LOGS" | grep -q "Attempting Claude analysis\|Calling Claude"; then
-    warn "Claude call in progress — JIRA ticket may not yet be created"
-  elif echo "$LOGS" | grep -q "credit balance\|insufficient_quota\|billing"; then
-    fail "Claude API credits issue detected — top up at console.anthropic.com/settings/billing"
+  elif echo "$LOGS" | grep -q "Requesting resolution from RHOAI model"; then
+    warn "RHOAI call in progress — JIRA ticket may not yet be created"
+  elif echo "$LOGS" | grep -q "RHOAI API call failed\|Connection error\|authentication"; then
+    fail "RHOAI API error detected — check RHOAI_API_URL, RHOAI_MODEL_NAME, and RHOAI_API_KEY in the secret"
   elif echo "$LOGS" | grep -q "Starting monitoring\|Monitor cycle"; then
     warn "Monitor is running but no issues detected yet (normal if JBoss is healthy)"
   fi

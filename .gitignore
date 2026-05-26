@@ -1,0 +1,92 @@
+# ── Claude Code internal state ───────────────────────────────────────────────
+.claude/
+
+
+# Note: k8s/secret-template.yaml (placeholder values only) IS committed.
+#       Add your filled copy under a different name, e.g. k8s/secret.yaml
+k8s/secret.yaml
+k8s/*pull-secret*.yaml
+
+# ── Environment / credentials (local dev) ───────────────────────────────────
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+kubeconfig
+kubeconfig.*
+
+# ── Python ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── Test / coverage / type checkers ─────────────────────────────────────────
+.pytest_cache/
+.mypy_cache/
+.dmypy.json
+.pytype/
+.ruff_cache/
+.tox/
+htmlcov/
+.coverage
+.coverage.*
+coverage.xml
+*.cover
+.hypothesis/
+nosetests.xml
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── Jupyter ──────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+
+# ── IDE / editor ────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+Thumbs.db
+
+# ── Temporary files ──────────────────────────────────────────────────────────
+*.tmp
+*.bak

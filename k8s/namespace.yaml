@@ -1,0 +1,7 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: jboss-monitoring
+  labels:
+    app.kubernetes.io/name: jboss-ai-monitor

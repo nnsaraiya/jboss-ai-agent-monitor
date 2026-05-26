@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JBoss AI Monitor — Executive Summary</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & base ─────────────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --red:        #EE0000;
+      --dark-gray:  #212121;
+      --mid-gray:   #444444;
+      --light-gray: #F5F5F5;
+      --border-gray:#DEDEDE;
+      --green:      #3E8C35;
+      --white:      #FFFFFF;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-size: 13px;
+      color: var(--dark-gray);
+      background: #E8E8E8;
+      line-height: 1.5;
+    }
+
+    /* ── Page wrapper ─────────────────────────────────────────────────────── */
+    .page {
+      max-width: 1000px;
+      margin: 32px auto;
+      background: var(--white);
+      box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+    }
+
+    /* ── Header ───────────────────────────────────────────────────────────── */
+    .header {
+      background: var(--red);
+      color: var(--white);
+      padding: 28px 36px 22px;
+    }
+
+    .header-eyebrow {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      text-transform: uppercase;
+      opacity: 0.82;
+      margin-bottom: 6px;
+    }
+
+    .header-title {
+      font-size: 26px;
+      font-weight: 700;
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .header-subtitle {
+      font-size: 14px;
+      font-weight: 400;
+      opacity: 0.90;
+    }
+
+    /* ── Body columns ─────────────────────────────────────────────────────── */
+    .body {
+      display: flex;
+      gap: 0;
+    }
+
+    .col-left {
+      flex: 0 0 60%;
+      padding: 28px 28px 28px 36px;
+      border-right: 1px solid var(--border-gray);
+    }
+
+    .col-right {
+      flex: 0 0 40%;
+      padding: 28px 32px 28px 26px;
+    }
+
+    /* ── Section headings ─────────────────────────────────────────────────── */
+    .section {
+      margin-bottom: 24px;
+    }
+
+    .section-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--red);
+      border-bottom: 2px solid var(--red);
+      padding-bottom: 4px;
+      margin-bottom: 10px;
+    }
+
+    .section p {
+      font-size: 12.5px;
+      color: var(--mid-gray);
+      line-height: 1.6;
+    }
+
+    /* ── How it works rows ────────────────────────────────────────────────── */
+    .how-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .how-icon {
+      font-size: 20px;
+      line-height: 1;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .how-content strong {
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--dark-gray);
+    }
+
+    .how-content span {
+      font-size: 12px;
+      color: var(--mid-gray);
+    }
+
+    /* ── Metric cards ─────────────────────────────────────────────────────── */
+    .metric-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+
+    .metric-card {
+      background: var(--light-gray);
+      border-top: 3px solid var(--red);
+      padding: 10px 12px;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--dark-gray);
+      line-height: 1.1;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--mid-gray);
+      margin-top: 3px;
+      line-height: 1.35;
+    }
+
+    /* ── Strategic value bullets ──────────────────────────────────────────── */
+    .bullet-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .bullet-list li {
+      display: flex;
+      gap: 8px;
+      align-items: flex-start;
+      font-size: 12px;
+      color: var(--mid-gray);
+      margin-bottom: 7px;
+      line-height: 1.45;
+    }
+
+    .bullet-list li::before {
+      content: "•";
+      color: var(--red);
+      font-weight: 700;
+      font-size: 16px;
+      line-height: 1;
+      flex-shrink: 0;
+    }
+
+    /* ── ROI table ────────────────────────────────────────────────────────── */
+    .roi-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    .roi-table thead tr {
+      background: var(--dark-gray);
+      color: var(--white);
+    }
+
+    .roi-table thead th {
+      padding: 7px 9px;
+      text-align: left;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    .roi-table tbody tr:nth-child(even) {
+      background: var(--light-gray);
+    }
+
+    .roi-table tbody tr:last-child {
+      background: var(--red);
+      color: var(--white);
+      font-weight: 700;
+    }
+
+    .roi-table tbody tr:last-child td {
+      color: var(--white);
+    }
+
+    .roi-table td {
+      padding: 7px 9px;
+      color: var(--mid-gray);
+    }
+
+    .roi-table td:last-child {
+      font-weight: 700;
+      color: var(--dark-gray);
+    }
+
+    .roi-table tbody tr:last-child td:last-child {
+      color: var(--white);
+    }
+
+    /* ── Footer bar ───────────────────────────────────────────────────────── */
+    .footer {
+      background: var(--red);
+      color: var(--white);
+      padding: 14px 36px;
+      font-size: 11.5px;
+      font-weight: 600;
+      letter-spacing: 0.02em;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px 24px;
+      align-items: center;
+    }
+
+    .footer-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .footer-item::before {
+      content: "·";
+      opacity: 0;
+    }
+
+    .footer-item + .footer-item::before {
+      opacity: 1;
+    }
+
+    /* ── Print styles ─────────────────────────────────────────────────────── */
+    @media print {
+      body {
+        background: var(--white);
+        font-size: 11px;
+      }
+
+      .page {
+        margin: 0;
+        box-shadow: none;
+        max-width: 100%;
+      }
+
+      .header-title  { font-size: 22px; }
+      .metric-value  { font-size: 18px; }
+
+      @page {
+        margin: 0;
+        size: Letter;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+
+    <!-- ── Header ───────────────────────────────────────────────────────── -->
+    <header class="header">
+      <div class="header-eyebrow">Executive Summary</div>
+      <div class="header-title">JBoss AI Monitor — Autonomous Incident Detection &amp; Documentation</div>
+      <div class="header-subtitle">
+        Reducing MTTR and operational cost with an AI-powered monitoring agent on Red Hat OpenShift AI
+      </div>
+    </header>
+
+    <!-- ── Two-column body ──────────────────────────────────────────────── -->
+    <div class="body">
+
+      <!-- LEFT COLUMN (60%) -->
+      <div class="col-left">
+
+        <!-- THE CHALLENGE -->
+        <div class="section">
+          <div class="section-label">The Challenge</div>
+          <p>
+            JBoss/WildFly incidents on OpenShift are detected late, analysed manually by senior engineers,
+            and documented inconsistently — or not at all. Each incident consumes 2–3 hours of skilled
+            engineering time and carries the risk of overnight outages going undetected until business hours.
+          </p>
+        </div>
+
+        <!-- THE SOLUTION -->
+        <div class="section">
+          <div class="section-label">The Solution</div>
+          <p>
+            The JBoss AI Monitor is an autonomous agent that continuously watches JBoss pods on OpenShift,
+            detects failures in real time, submits the issue context to a Red Hat OpenShift AI–hosted LLM,
+            and creates a structured JIRA ticket with root-cause analysis, resolution steps, and prevention
+            tips — all within 60 seconds of detection, 24 hours a day.
+          </p>
+        </div>
+
+        <!-- HOW IT WORKS -->
+        <div class="section">
+          <div class="section-label">How It Works</div>
+
+          <div class="how-row">
+            <div class="how-icon">🔍</div>
+            <div class="how-content">
+              <strong>Detect</strong> —
+              <span>Pod crashes, OOMKills, log errors, health failures — caught every 60 seconds</span>
+            </div>
+          </div>
+
+          <div class="how-row">
+            <div class="how-icon">🧠</div>
+            <div class="how-content">
+              <strong>Analyse</strong> —
+              <span>RHOAI-hosted LLM (on-premises) generates root cause and resolution</span>
+            </div>
+          </div>
+
+          <div class="how-row">
+            <div class="how-icon">🎫</div>
+            <div class="how-content">
+              <strong>Document</strong> —
+              <span>Structured JIRA ticket with AI analysis created automatically</span>
+            </div>
+          </div>
+
+          <div class="how-row">
+            <div class="how-icon">🔕</div>
+            <div class="how-content">
+              <strong>Deduplicate</strong> —
+              <span>Repeat alerts suppressed; engineers see signal, not noise</span>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /col-left -->
+
+      <!-- RIGHT COLUMN (40%) -->
+      <div class="col-right">
+
+        <!-- ECONOMIC VALUE -->
+        <div class="section">
+          <div class="section-label">Economic Value</div>
+          <div class="metric-grid">
+            <div class="metric-card">
+              <div class="metric-value">$225</div>
+              <div class="metric-label">Saved per incident<br>(2 hrs senior eng @ $100/hr)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value">$81,000<span style="font-size:13px;font-weight:500">/yr</span></div>
+              <div class="metric-label">Medium environment<br>(30 incidents/month)</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value">24/7</div>
+              <div class="metric-label">Coverage with zero<br>on-call cost</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-value">14 sec</div>
+              <div class="metric-label">Time to AI root-cause<br>analysis</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- STRATEGIC VALUE -->
+        <div class="section">
+          <div class="section-label">Strategic Value</div>
+          <ul class="bullet-list">
+            <li>Runs 100% on Red Hat OpenShift + RHOAI — no external AI API</li>
+            <li>Customer data never leaves the cluster (critical for regulated industries)</li>
+            <li>Activates existing RHOAI platform investment on Day 1</li>
+            <li>No new vendor — extends OpenShift and JBoss EAP value</li>
+          </ul>
+        </div>
+
+        <!-- ROI TABLE -->
+        <div class="section">
+          <div class="section-label">ROI by Environment</div>
+          <table class="roi-table">
+            <thead>
+              <tr>
+                <th>Environment</th>
+                <th>Incidents/mo</th>
+                <th>Annual Savings</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Small (1 env)</td>
+                <td>10</td>
+                <td>$27,000</td>
+              </tr>
+              <tr>
+                <td>Medium (3 envs)</td>
+                <td>30</td>
+                <td>$81,000</td>
+              </tr>
+              <tr>
+                <td>Large (10 envs)</td>
+                <td>100</td>
+                <td>$270,000</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+      </div><!-- /col-right -->
+    </div><!-- /body -->
+
+    <!-- ── Footer ────────────────────────────────────────────────────────── -->
+    <footer class="footer">
+      <span class="footer-item">Deployed in under a day</span>
+      <span class="footer-item">Runs on Red Hat OpenShift AI</span>
+      <span class="footer-item">No external AI APIs</span>
+      <span class="footer-item">Customer-owned source code</span>
+    </footer>
+
+  </div><!-- /page -->
+</body>
+</html>
